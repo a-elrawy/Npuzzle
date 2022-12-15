@@ -60,7 +60,14 @@ class Game:
             possible_moves.append("down")
         return possible_moves
 
-    def apply_choice(self, choice, row, col):
+    def get_empty_tile(self):
+        for row, x in enumerate(self.tiles_grid):
+            for col, tile in enumerate(x):
+                if tile == 0:
+                    return row, col
+
+    def apply_choice(self, choice):
+        row,  col = self.get_empty_tile()
         if choice not in self.get_possible_moves(row, col):
             return
         if choice == "right":
@@ -74,8 +81,7 @@ class Game:
                                                                        self.tiles_grid[row][col]
         elif choice == "down":
             self.tiles_grid[row][col], self.tiles_grid[row + 1][col] = self.tiles_grid[row + 1][col], \
-                                                                       self.tiles_grid[row][col]
-
+                                                                   self.tiles_grid[row][col]
     def move(self, move):
         grid = deepcopy(self.tiles_grid)
         return self.get_apply_choice(move, self.empty_tile[0], self.empty_tile[1], grid)
@@ -123,8 +129,9 @@ class Game:
             self.tiles_grid = state
         else:
             choice = selector(possible_moves)
+        self.empty_tile = (row, col)
 
-        self.apply_choice(choice, row, col)
+        self.apply_choice(choice)
 
         self.previous_choice = choice
         if not shuffle:
@@ -164,7 +171,8 @@ class Game:
         self.buttons_list.append(Button(500, 170, 200, 50, "Reset", WHITE, BLACK))
         self.buttons_list.append(Button(500, 310, 200, 50, "Misplaced", WHITE, BLACK))
         self.buttons_list.append(Button(500, 380, 200, 50, "Distance", WHITE, BLACK))
-        self.buttons_list.append(Button(500, 450, 200, 50, "Cost", WHITE, BLACK))
+        self.buttons_list.append(Button(500, 450, 200, 50, "Misplaced C", WHITE, BLACK))
+        self.buttons_list.append(Button(500, 520, 200, 50, "Distance C", WHITE, BLACK))
         self.draw_tiles()
 
     def run(self):
@@ -194,21 +202,13 @@ class Game:
             self.shuffle()
             self.draw_tiles()
             self.shuffle_time += 1
-            if self.shuffle_time > 120:
+            if self.shuffle_time > 50:
                 self.start_shuffle = False
                 self.start_game = True
                 self.start_timer = True
 
         if self.solve:
-            self.play()
-            self.draw_tiles()
-            self.solve_epochs += 1
-            if sol.distance(self.tiles_grid) == 0:
-                self.solve = False
-                self.start_game = True
-                sol.visited = []
-                sol.path = []
-                sol.frontier = []
+            sol.solve()
 
         self.all_sprites.update()
 
@@ -260,31 +260,36 @@ class Game:
                                                                                            self.tiles_grid[row][col]
 
                             self.draw_tiles()
-                            sol.solve()
+                            # sol.solve()
 
                 for button in self.buttons_list:
+                    available_algo = ["Misplaced", "Distance", "Misplaced C", "Distance C"]
                     if button.click(mouse_x, mouse_y):
                         if button.text == "Shuffle":
                             self.shuffle_time = 0
                             self.start_shuffle = True
-                        if button.text in ["Misplaced", "Distance", "Cost"]:
+                        if button.text in available_algo:
                             self.solve_epochs = 0
                             self.path = []
                             self.visited = []
                             self.solve = True
-                            if button.text == "Misplaced":
-                                sol.heuristic = sol.misplaced_tiles
-                            if button.text == "Distance":
-                                sol.heuristic = sol.distance
-                            print(sol.heuristic)
+                            if button.text == "Misplaced" or button.text == "Distance":
+                                sol.heuristic = sol.make_heuristic(button.text)
+                            if button.text == "Misplaced C" or button.text == "Distance C":
+                                sol.heuristic = sol.make_heuristic(button.text.split(' ')[0], True)
                         if button.text == "Reset":
                             self.new()
 
 
 n = int(input("Enter the size of the puzzle: "))
 game = Game(n)
+
+
 sol = Solver(game)
+
+
 while True:
     game.new()
     game.run()
+
     sol.solve()
